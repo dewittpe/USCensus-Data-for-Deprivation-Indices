@@ -151,7 +151,7 @@ geographic_imputation <- function(DT, variable = NULL) {
   data.table::set(d, i = which(tti), j = paste0(VE, "_geo"), value = "tract")
   data.table::set(d, i = which(cyi), j = paste0(VE, "_geo"), value = "county")
   data.table::set(d, i = which(sti), j = paste0(VE, "_geo"), value = "state")
-  
+
   # set the MOE value
   data.table::set(d, j = VM, value = NA_integer_)
   data.table::set(d, i = which(bgi), j = VM, value = d[[paste0(VM, "_bg")]][which(bgi)])
@@ -171,7 +171,7 @@ shrinkage_weights <- function(DT, variable) {
   stopifnot(is.character(variable))
   stopifnot(paste0(variable, "E") %in% names(DT))
   stopifnot(paste0(variable, "M") %in% names(DT))
-  
+
   n <- parse(text = sprintf("sum(!is.na(%sE))", variable))
   m <- parse(text = sprintf("mean(%sE, na.rm = TRUE)", variable))
   t <- parse(text = sprintf("max(0, var(%sE, na.rm = TRUE) - mean(%sM/1.645, na.rm = TRUE)^2)", variable, variable))
@@ -224,42 +224,42 @@ shrink <- function(DT, variable) {
   i <- which((d[[VG]] == "block_group") & (d[["tract_n"]] == 1) & is.na(d[["tract_weight"]]))
   data.table::set(d, i = i, j = "tract_weight", value = 1)
 
-  # shrink 
+  # shrink
   bgi <- which(d[[paste0(variable, "E_geo")]] == "block_group")
   tti <- which(d[[paste0(variable, "E_geo")]] == "tract")
   cyi <- which(d[[paste0(variable, "E_geo")]] == "county")
   sti <- which(d[[paste0(variable, "E_geo")]] == "state")
 
   data.table::set(d, i = bgi, j = VS, value = NA_real_)
-  i <- which(d[[VG]] == "block_group") 
+  i <- which(d[[VG]] == "block_group")
   data.table::set(
     x = d,
     i = i,
     j = VS,
-    value = 
+    value =
       (
         d[[VE]] * d[["tract_weight"]] + (1 - d[["tract_weight"]]) * d[["tract_mu"]]
       )[i]
   )
 
 
-  i <- which(d[[VG]] == "tract") 
+  i <- which(d[[VG]] == "tract")
   data.table::set(
     x = d,
     i = i,
     j = VS,
-    value = 
+    value =
       (
         d[[VE]] * d[["county_weight"]] + (1 - d[["county_weight"]]) * d[["county_mu"]]
       )[i]
   )
 
-  i <- which(d[[VG]] == "county") 
+  i <- which(d[[VG]] == "county")
   data.table::set(
     x = d,
     i = i,
     j = VS,
-    value = 
+    value =
       (
         d[[VE]] * d[["state_weight"]] + (1 - d[["state_weight"]]) * d[["state_mu"]]
       )[i]
@@ -267,9 +267,12 @@ shrink <- function(DT, variable) {
 
   # if there are any missing values left, all the imputatation should be from
   # the state level data
+  i <- which(is.na(d[[VS]]))
   stopifnot(
-    d[is.na(B19113_001_shrunk), all(.SD == "state"), .SDcols = VG]
+    d[i, all(.SD == "state"), .SDcols = VG]
   )
+
+  # return
   d
 }
 
