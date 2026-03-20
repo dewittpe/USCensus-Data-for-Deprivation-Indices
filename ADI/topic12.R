@@ -1,0 +1,43 @@
+################################################################################
+# file: topic12.R
+#
+# Objective: build topic12 of the Area Depredation Index
+#
+#   Topic: 12
+#   Topic Area: % Pop Below 150% of Poverty Threshold
+#   Detailed Table ID: C17002
+#   Calculations:
+#     Numerator: Sum _002 through _005
+#     Denominator: C17002_001
+#
+################################################################################
+source("adi_utilities.R")
+DT <- import_census_table("C17002")
+cfa <- check_for_anotations(DT)
+stopifnot(identical(cfa, list(E = character(0), M = character(0))))
+
+
+# build the topic
+DT[
+  ,
+  topic12 := data.table::fifelse(
+               C17002_001E > 0,
+               rowSums(.SD, na.rm = TRUE) / C17002_001E,
+               NA_real_
+             ),
+  .SDcols = sprintf("C17002_%03dE", 2:5)
+  ]
+
+# all missing is due to C17002_001
+stopifnot(DT[is.na(topic12), all(C17002_001E == 0)])
+
+# the base cols_to_keep is defined in adi_utilities.R
+cols_to_keep <- c(COLS_TO_KEEP, "topic12")
+
+data.table::fwrite(
+  x = DT[, .SD, .SDcols = cols_to_keep],
+  file = "topic12.csv"
+)
+################################################################################
+#                                 End of File                                  #
+################################################################################

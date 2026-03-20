@@ -1,0 +1,41 @@
+################################################################################
+# file: topic11.R
+#
+# Objective: build topic11 of the Area Depredation Index
+#
+#   Topic: 11
+#   Topic Area: % Families Below Poverty Level
+#   Detailed Table ID: B17010
+#   Calculations:
+#     Numerator: B17010_002
+#     Denominator: B17010_001
+#
+################################################################################
+source("adi_utilities.R")
+DT <- import_census_table("B17010")
+cfa <- check_for_anotations(DT)
+stopifnot(identical(cfa, list(E = character(0), M = character(0))))
+
+# build the topic
+DT[
+  ,
+  topic11 := data.table::fifelse(
+               B17010_001E > 0,
+               B17010_002E / B17010_001E,
+               NA_real_
+             ),
+  ]
+
+# all missing is due to B17010_001
+stopifnot(DT[is.na(topic11), all(B17010_001E == 0)])
+
+# the base cols_to_keep is defined in adi_utilities.R
+cols_to_keep <- c(COLS_TO_KEEP, "topic11")
+
+data.table::fwrite(
+  x = DT[, .SD, .SDcols = cols_to_keep],
+  file = "topic11.csv"
+)
+################################################################################
+#                                 End of File                                  #
+################################################################################
