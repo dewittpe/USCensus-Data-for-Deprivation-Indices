@@ -75,7 +75,7 @@ create an account with them before downloading the data.
 - University of Wisconsin School of Medicine and Public Health. 2020 Area Deprivation Index v4.0.1. Downloaded from https://www.neighborhoodatlas.medicine.wisc.edu/ March 20 2026
 - University of Wisconsin School of Medicine and Public Health. 2023 Area Deprivation Index v4.0.1. Downloaded from https://www.neighborhoodatlas.medicine.wisc.edu/ March 20 2026
 
-For my work I have saved the path to thses files as envirnment variables.
+For our work the path to thses files as envirnment variables.
 
 
 ``` r
@@ -147,6 +147,7 @@ neighborhood_atlas
 ## 484671:                               QDI                          1
 ```
 
+### Reproduced ADI Data
 Read in the ADI as reproduced in this repo.
 
 ``` r
@@ -158,8 +159,11 @@ Subset to just years 2020 and 2023 and merge on the Neighborhood Atlas data.
 adi <- subset(adi, year %in% c(2020, 2023))
 adi <- merge(x = adi, y = neighborhood_atlas, all = TRUE, by = c("year", "FIPS"))
 ```
+
+### Exclusion Criteria
 As noted above, Neighborhood Atlas does exclude some block groups from ranking.  
 Here we report how similar our exclusion flagging is.
+
 
 ``` r
 adi[, .N, keyby = .(year, exclude_from_ranking, neighborhood_atlas_exclude)]
@@ -221,16 +225,16 @@ adi[,
   .(
     both_exclude = qwraps2::n_perc(exclude_from_ranking == 1 & neighborhood_atlas_exclude == 1, digits = 1),
     both_include = qwraps2::n_perc(exclude_from_ranking == 0 & neighborhood_atlas_exclude == 0, digits = 1),
-    r_in_ngbr_ex = qwraps2::n_perc(exclude_from_ranking == 0 & neighborhood_atlas_exclude == 1, digits = 1),
-    r_ex_nghr_in = qwraps2::n_perc(exclude_from_ranking == 1 & neighborhood_atlas_exclude == 0, digits = 1)
+    repo_in_ngbr_ex = qwraps2::n_perc(exclude_from_ranking == 0 & neighborhood_atlas_exclude == 1, digits = 1),
+    rep__ex_nghr_in = qwraps2::n_perc(exclude_from_ranking == 1 & neighborhood_atlas_exclude == 0, digits = 1)
   ),
   keyby = .(year)
   ]
 ## Key: <year>
-##     year both_exclude    both_include r_in_ngbr_ex r_ex_nghr_in
-##    <int>       <char>          <char>       <char>       <char>
-## 1:  2020 5,669 (2.3%) 235,334 (97.1%)   780 (0.3%)   552 (0.2%)
-## 2:  2023 6,152 (2.5%) 236,102 (97.4%)    42 (0.0%)     0 (0.0%)
+##     year both_exclude    both_include repo_in_ngbr_ex rep__ex_nghr_in
+##    <int>       <char>          <char>          <char>          <char>
+## 1:  2020 5,669 (2.3%) 235,334 (97.1%)      780 (0.3%)      552 (0.2%)
+## 2:  2023 6,152 (2.5%) 236,102 (97.4%)       42 (0.0%)        0 (0.0%)
 ```
 
 Let's look at the block groups that are excluded in Neighborhood Atlas but not
@@ -255,7 +259,6 @@ The primary reaon for exclusion by Neighborhood Atlas is group quarters.
 
 ``` r
 group_quarters <- data.table::fread("group_quarters.csv.gz")
-
 bg_gh <-
   group_quarters[
     adi[exclude_from_ranking == 0 & neighborhood_atlas_exclude == 1],
@@ -298,7 +301,9 @@ bg_gh[, .SD[duplicated(.SD, by = c("state", "county", "tract", "block_group"))]]
 ## 2:           NA                               QDI                          1
 ## 3:           NA                               QDI                          1
 ```
-This is not the case.
+
+There are many ways the reason for exclusion will change from 2020 to 2023
+within the Neighborhood Atlas data.
 
 ``` r
 data.table::dcast(
@@ -340,108 +345,15 @@ data-use agreement.  For the reproduction, and using only publicly available
 data, we are restricted to using the Decennial census values for both 2020 and
 2023.
 
-
-
-``` r
-adi[bg_gh, on = "FIPS"]
-##        year         FIPS state county  tract block_group    adi_raw
-##       <int>       <char> <int>  <int>  <int>       <int>      <num>
-##    1:  2020 010030105001     1      3  10500           1 -17948.976
-##    2:  2023 010030105001     1      3  10500           1 -19330.433
-##    3:  2020 010150012012     1     15   1201           2 -10523.215
-##    4:  2023 010150012012     1     15   1201           2 -16310.839
-##    5:  2020 010399625001     1     39 962500           1 -10447.992
-##   ---                                                              
-## 1633:  2023 483859501004    48    385 950100           4 -19698.002
-## 1634:  2020 484439501001    48    443 950100           1 -12023.690
-## 1635:  2023 484439501001    48    443 950100           1 -16749.861
-## 1636:  2020 720851902012    72     85 190201           2  -9004.742
-## 1637:  2023 720851902012    72     85 190201           2  -7061.400
-##       exclude_from_ranking exclude_reason national_rank state_rank ADI_NATRANK
-##                      <int>         <char>         <int>      <int>       <num>
-##    1:                    0                           63          4          NA
-##    2:                    0                           75          5          80
-##    3:                    0                           91          8          NA
-##    4:                    0                           84          7          82
-##    5:                    0                           91          9          NA
-##   ---                                                                         
-## 1633:                    0                           74          7          NA
-## 1634:                    0                           86          8          NA
-## 1635:                    0                           83          8          NA
-## 1636:                    0                           95          7          95
-## 1637:                    0                          100         10          NA
-##       ADI_STATERNK neighborhood_atlas_exclude_reason neighborhood_atlas_exclude
-##              <num>                            <char>                      <int>
-##    1:           NA                                GQ                          1
-##    2:            6                                                            0
-##    3:           NA                                GQ                          1
-##    4:            6                                                            0
-##    5:           NA                                GQ                          1
-##   ---                                                                          
-## 1633:           NA                               QDI                          1
-## 1634:           NA                               QDI                          1
-## 1635:           NA                               QDI                          1
-## 1636:            7                                                            0
-## 1637:           NA                               QDI                          1
-##       i.year i.state i.county i.tract i.block_group group_quarters i.adi_raw
-##        <int>   <int>    <int>   <int>         <int>          <num>     <num>
-##    1:   2020       1        3   10500             1      0.3221818 -17948.98
-##    2:   2020       1        3   10500             1      0.3221818 -17948.98
-##    3:   2020       1       15    1201             2      0.2515231 -10523.21
-##    4:   2020       1       15    1201             2      0.2515231 -10523.21
-##    5:   2020       1       39  962500             1      0.1946779 -10447.99
-##   ---                                                                       
-## 1633:   2023      48      385  950100             4             NA -19698.00
-## 1634:   2023      48      443  950100             1             NA -16749.86
-## 1635:   2023      48      443  950100             1             NA -16749.86
-## 1636:   2023      72       85  190201             2             NA  -7061.40
-## 1637:   2023      72       85  190201             2             NA  -7061.40
-##       i.exclude_from_ranking i.exclude_reason i.national_rank i.state_rank
-##                        <int>           <char>           <int>        <int>
-##    1:                      0                               63            4
-##    2:                      0                               63            4
-##    3:                      0                               91            8
-##    4:                      0                               91            8
-##    5:                      0                               91            9
-##   ---                                                                     
-## 1633:                      0                               74            7
-## 1634:                      0                               83            8
-## 1635:                      0                               83            8
-## 1636:                      0                              100           10
-## 1637:                      0                              100           10
-##       i.ADI_NATRANK i.ADI_STATERNK i.neighborhood_atlas_exclude_reason
-##               <num>          <num>                              <char>
-##    1:            NA             NA                                  GQ
-##    2:            NA             NA                                  GQ
-##    3:            NA             NA                                  GQ
-##    4:            NA             NA                                  GQ
-##    5:            NA             NA                                  GQ
-##   ---                                                                 
-## 1633:            NA             NA                                 QDI
-## 1634:            NA             NA                                 QDI
-## 1635:            NA             NA                                 QDI
-## 1636:            NA             NA                                 QDI
-## 1637:            NA             NA                                 QDI
-##       i.neighborhood_atlas_exclude
-##                              <int>
-##    1:                            1
-##    2:                            1
-##    3:                            1
-##    4:                            1
-##    5:                            1
-##   ---                             
-## 1633:                            1
-## 1634:                            1
-## 1635:                            1
-## 1636:                            1
-## 1637:                            1
-```
-Not that for the block groups that our reproduction excludes but Neighborhood
+Note that for the block groups that our reproduction excludes but Neighborhood
 Atlas does not, it is all due to grouped quarters.
 
 ``` r
-adi[exclude_from_ranking == 1 & neighborhood_atlas_exclude == 0, .N, by =
-  .(year, exclude_reason)]
+adi[
+  exclude_from_ranking == 1 & neighborhood_atlas_exclude == 0,
+  .N,
+  by = .(year, exclude_reason)
+]
 ##     year exclude_reason     N
 ##    <int>         <char> <int>
 ## 1:  2020             GQ   552
@@ -501,6 +413,5 @@ adi[exclude_from_ranking == 1 & neighborhood_atlas_exclude == 0, .N, by =
   </tr>
 </tbody>
 </table>
-
 
 

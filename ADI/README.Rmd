@@ -79,7 +79,7 @@ create an account with them before downloading the data.
 - University of Wisconsin School of Medicine and Public Health. 2020 Area Deprivation Index v4.0.1. Downloaded from https://www.neighborhoodatlas.medicine.wisc.edu/ March 20 2026
 - University of Wisconsin School of Medicine and Public Health. 2023 Area Deprivation Index v4.0.1. Downloaded from https://www.neighborhoodatlas.medicine.wisc.edu/ March 20 2026
 
-For my work I have saved the path to thses files as envirnment variables.
+For our work the path to thses files as envirnment variables.
 
 ```{r}
 stopifnot(
@@ -123,6 +123,7 @@ neighborhood_atlas[, ADI_NATRANK  := suppressWarnings(as.numeric(ADI_NATRANK))]
 neighborhood_atlas
 ```
 
+### Reproduced ADI Data
 Read in the ADI as reproduced in this repo.
 ```{r}
 adi <- data.table::fread("adi.csv.gz", colClasses = c("FIPS" = "character"))
@@ -132,8 +133,11 @@ Subset to just years 2020 and 2023 and merge on the Neighborhood Atlas data.
 adi <- subset(adi, year %in% c(2020, 2023))
 adi <- merge(x = adi, y = neighborhood_atlas, all = TRUE, by = c("year", "FIPS"))
 ```
+
+### Exclusion Criteria
 As noted above, Neighborhood Atlas does exclude some block groups from ranking.  
 Here we report how similar our exclusion flagging is.
+
 ```{r}
 adi[, .N, keyby = .(year, exclude_from_ranking, neighborhood_atlas_exclude)]
 ```
@@ -181,8 +185,8 @@ adi[,
   .(
     both_exclude = qwraps2::n_perc(exclude_from_ranking == 1 & neighborhood_atlas_exclude == 1, digits = 1),
     both_include = qwraps2::n_perc(exclude_from_ranking == 0 & neighborhood_atlas_exclude == 0, digits = 1),
-    r_in_ngbr_ex = qwraps2::n_perc(exclude_from_ranking == 0 & neighborhood_atlas_exclude == 1, digits = 1),
-    r_ex_nghr_in = qwraps2::n_perc(exclude_from_ranking == 1 & neighborhood_atlas_exclude == 0, digits = 1)
+    repo_in_ngbr_ex = qwraps2::n_perc(exclude_from_ranking == 0 & neighborhood_atlas_exclude == 1, digits = 1),
+    rep__ex_nghr_in = qwraps2::n_perc(exclude_from_ranking == 1 & neighborhood_atlas_exclude == 0, digits = 1)
   ),
   keyby = .(year)
   ]
@@ -202,7 +206,6 @@ The primary reaon for exclusion by Neighborhood Atlas is group quarters.
 
 ```{r}
 group_quarters <- data.table::fread("group_quarters.csv.gz")
-
 bg_gh <-
   group_quarters[
     adi[exclude_from_ranking == 0 & neighborhood_atlas_exclude == 1],
@@ -223,7 +226,9 @@ data sets.
 ```{r}
 bg_gh[, .SD[duplicated(.SD, by = c("state", "county", "tract", "block_group"))]]
 ```
-This is not the case.
+
+There are many ways the reason for exclusion will change from 2020 to 2023
+within the Neighborhood Atlas data.
 ```{r}
 data.table::dcast(
   neighborhood_atlas[
@@ -243,15 +248,14 @@ data-use agreement.  For the reproduction, and using only publicly available
 data, we are restricted to using the Decennial census values for both 2020 and
 2023.
 
-
-```{r}
-adi[bg_gh, on = "FIPS"]
-```
-Not that for the block groups that our reproduction excludes but Neighborhood
+Note that for the block groups that our reproduction excludes but Neighborhood
 Atlas does not, it is all due to grouped quarters.
 ```{r}
-adi[exclude_from_ranking == 1 & neighborhood_atlas_exclude == 0, .N, by =
-  .(year, exclude_reason)]
+adi[
+  exclude_from_ranking == 1 & neighborhood_atlas_exclude == 0,
+  .N,
+  by = .(year, exclude_reason)
+]
 ```
 
 ### Correlations
@@ -310,4 +314,3 @@ kableExtra::kbl(
   ) |>
 kableExtra::add_header_above(c("", "", "State Level" = 3, "National Level" = 3))
 ```
-
