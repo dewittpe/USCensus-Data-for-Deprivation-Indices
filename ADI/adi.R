@@ -123,9 +123,11 @@ adi[!is.na(adi_raw) & exclude_from_ranking == 0,
 
 ################################################################################
 # save to disk
+adi[, FIPS := build_FIPS(state, county, tract, block_group)]
 cols_to_keep <-
   c(
     COLS_TO_KEEP,
+    "FIPS",
     "adi_raw",
     "exclude_from_ranking", "exclude_reason",
     "national_rank", "state_rank"

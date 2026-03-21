@@ -1,10 +1,6 @@
 # Area Depredation Index
 
-```{r sefup, include = FALSE}
-options(qwraps2_markup = "markdown")
-options(knitr.kable.NA = '')
-knitr::opts_chunk$set(collapse = TRUE, fig.align = "center")
-```
+
 
 The Area Depredation Index (ADI)
 
@@ -81,16 +77,20 @@ create an account with them before downloading the data.
 
 For my work I have saved the path to thses files as envirnment variables.
 
-```{r}
+
+``` r
 stopifnot(
   file.exists(Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2020_V401")),
   file.exists(Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2023_V401"))
 )
 digest::digest(Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2020_V401"), algo = "sha256")
+## [1] "a86448b07bd3d32dac4ee07d532924a6aa320ea445a665435f4aaf8139bad628"
 digest::digest(Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2023_V401"), algo = "sha256")
+## [1] "5a7532cf8e4e2e6168b8d0f0329ae7a0b557e7476669c8274b54d42ac2331c0d"
 ```
 Import the Neighborhood Atlas 2020 and 2023 data.
-```{r}
+
+``` r
 neighborhood_atlas <-
   list(
     "2020" = data.table::fread(Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2020_V401"), colClasses = "character"),
@@ -107,21 +107,61 @@ neighborhood_atlas[, neighborhood_atlas_exclude := as.integer(neighborhood_atlas
 neighborhood_atlas[, ADI_STATERNK := suppressWarnings(as.numeric(ADI_STATERNK))]
 neighborhood_atlas[, ADI_NATRANK  := suppressWarnings(as.numeric(ADI_NATRANK))]
 neighborhood_atlas
+##          year         FIPS ADI_NATRANK ADI_STATERNK
+##         <int>       <char>       <num>        <num>
+##      1:  2020 010010201001          72            5
+##      2:  2020 010010201002          61            3
+##      3:  2020 010010202001          83            6
+##      4:  2020 010010202002          87            7
+##      5:  2020 010010203001          73            5
+##     ---                                            
+## 484667:  2023 361031462041          NA           NA
+## 484668:  2023 361031462042          NA           NA
+## 484669:  2023 361031462043          NA           NA
+## 484670:  2023 361032012001          NA           NA
+## 484671:  2023 361119544011          NA           NA
+##         neighborhood_atlas_exclude_reason neighborhood_atlas_exclude
+##                                    <char>                      <int>
+##      1:                                                            0
+##      2:                                                            0
+##      3:                                                            0
+##      4:                                                            0
+##      5:                                                            0
+##     ---                                                             
+## 484667:                               QDI                          1
+## 484668:                               QDI                          1
+## 484669:                               QDI                          1
+## 484670:                               QDI                          1
+## 484671:                               QDI                          1
 ```
 
 Read in the ADI as reproduced in this repo.
-```{r}
+
+``` r
 adi <- data.table::fread("adi.csv.gz", colClasses = c("FIPS" = "character"))
 ```
 Subset to just years 2020 and 2023 and merge on the Neighborhood Atlas data.
-```{r}
+
+``` r
 adi <- subset(adi, year %in% c(2020, 2023))
 adi <- merge(x = adi, y = neighborhood_atlas, all = TRUE, by = c("year", "FIPS"))
 ```
 As noted above, Neighborhood Atlas does exclude some block groups from ranking.  
 Here we report how similar our exclusion flagging is.
-```{r}
+
+``` r
 adi[, .N, keyby = .(year, exclude_from_ranking, neighborhood_atlas_exclude)]
+## Key: <year, exclude_from_ranking, neighborhood_atlas_exclude>
+##     year exclude_from_ranking neighborhood_atlas_exclude      N
+##    <int>                <int>                      <int>  <int>
+## 1:  2020                    0                          0 235334
+## 2:  2020                    0                          1    780
+## 3:  2020                    1                          0    552
+## 4:  2020                    1                          1   5669
+## 5:  2023                   NA                          1     40
+## 6:  2023                    0                          0 236102
+## 7:  2023                    0                          1   2511
+## 8:  2023                    1                          1   3683
 ```
 
 There are 40 GEOID in the 2023 Neighborhood Atlas only.
@@ -157,12 +197,14 @@ What that means:
 So the reason for the mismatch is a geography-vintage mismatch between
 Neighborhood Atlas 2023 and the 2023 Census geography returned by your workflow
 
-```{r}
+
+``` r
 # remove these 40 rows
 adi <- subset(adi, !(is.na(exclude_from_ranking)))
 ```
 
-```{r}
+
+``` r
 adi[,
   .(
     both_exclude = qwraps2::n_perc0(exclude_from_ranking == 1 & neighborhood_atlas_exclude == 1),
@@ -172,35 +214,59 @@ adi[,
   ),
   keyby = .(year)
   ]
+## Key: <year>
+##     year both_exclude both_include r_in_ngbr_ex r_ex_nghr_in
+##    <int>       <char>       <char>       <char>       <char>
+## 1:  2020    5,669 (2) 235,334 (97)      780 (0)      552 (0)
+## 2:  2023    3,683 (2) 236,102 (97)    2,511 (1)        0 (0)
 ```
 
 adi[, sum(exclude_from_ranking == neighborhood_atlas_exclude)]
 
 
-```{r}
+
+``` r
 with(adi, cor(state_rank, ADI_STATERNK, method = "pearson", use = "pairwise.complete.obs"))
+## [1] 0.9686852
 with(adi, cor(state_rank, ADI_STATERNK, method = "spearman", use = "pairwise.complete.obs"))
+## [1] 0.9686906
 adi[complete.cases(adi[, .(state_rank, ADI_STATERNK)])][, pcaPP::cor.fk(state_rank, ADI_STATERNK)]
+## [1] 0.9139497
 
 with(adi[year == 2020], cor(state_rank, ADI_STATERNK, method = "pearson", use = "pairwise.complete.obs"))
+## [1] 0.9693838
 with(adi[year == 2020], cor(state_rank, ADI_STATERNK, method = "spearman", use = "pairwise.complete.obs"))
+## [1] 0.9693893
 adi[year == 2020 & complete.cases(adi[, .(state_rank, ADI_STATERNK)])][, pcaPP::cor.fk(state_rank, ADI_STATERNK)]
+## [1] 0.9151964
 
 with(adi[year == 2023], cor(state_rank, ADI_STATERNK, method = "pearson", use = "pairwise.complete.obs"))
+## [1] 0.967989
 with(adi[year == 2023], cor(state_rank, ADI_STATERNK, method = "spearman", use = "pairwise.complete.obs"))
+## [1] 0.9679944
 adi[year == 2023 & complete.cases(adi[, .(state_rank, ADI_STATERNK)])][, pcaPP::cor.fk(state_rank, ADI_STATERNK)]
+## [1] 0.9127118
 
 with(adi, cor(national_rank, ADI_NATRANK, method = "pearson", use = "pairwise.complete.obs"))
+## [1] 0.9864722
 with(adi, cor(national_rank, ADI_NATRANK, method = "spearman", use = "pairwise.complete.obs"))
+## [1] 0.986479
 adi[complete.cases(adi[, .(national_rank, ADI_NATRANK)])][, pcaPP::cor.fk(national_rank, ADI_NATRANK)]
+## [1] 0.921997
 
 with(adi[year == 2020], cor(national_rank, ADI_NATRANK, method = "pearson", use = "pairwise.complete.obs"))
+## [1] 0.9864514
 with(adi[year == 2020], cor(national_rank, ADI_NATRANK, method = "spearman", use = "pairwise.complete.obs"))
+## [1] 0.9864559
 adi[year == 2020 & complete.cases(adi[, .(national_rank, ADI_NATRANK)])][, pcaPP::cor.fk(national_rank, ADI_NATRANK)]
+## [1] 0.9219371
 
 with(adi[year == 2023], cor(national_rank, ADI_NATRANK, method = "pearson", use = "pairwise.complete.obs"))
+## [1] 0.9864933
 with(adi[year == 2023], cor(national_rank, ADI_NATRANK, method = "spearman", use = "pairwise.complete.obs"))
+## [1] 0.9865021
 adi[year == 2023 & complete.cases(adi[, .(national_rank, ADI_NATRANK)])][, pcaPP::cor.fk(national_rank, ADI_NATRANK)]
+## [1] 0.9220846
 ```
 
 

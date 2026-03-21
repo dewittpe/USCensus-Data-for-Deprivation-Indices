@@ -8,7 +8,7 @@ acsvar = $(foreach year,$(ACS5_YEARS),../ACS5/$(1)__$(year).csv.gz)
 .INTERMEDIATE: $(ADITOPIC_CSV) total_population.csv housing_units.csv group_quarters.csv adi.csv
 .PHONY: all clean
 
-all: adi.csv.gz
+all: README.md
 
 %.csv.gz: %.csv
 	gzip -9 -f -n $<
@@ -75,3 +75,6 @@ topic16.csv: topic16.R adi_utilities.R $(call acsvar,B25047)
 
 topic17.csv: topic17.R adi_utilities.R $(call acsvar,B25014)
 	$(RSCRIPTVANILLA) $<
+
+README.md: README.Rmd adi.csv.gz
+	$(RSCRIPTVANILLA) -e "knitr::knit('$<', output='$@')"
