@@ -86,12 +86,15 @@ adi <-
     by = COLS_TO_KEEP
   )
 
+# join group quarters only on state, county, tract, and block_group, not year.
+# this is because the group quarters are based on the Decennial census data from
+# 2020 and applicable to all years.
 adi <-
   merge(
     x = adi,
-    y = group_quarters,
+    y = group_quarters[, -"year"],
     all.x = TRUE,
-    by = COLS_TO_KEEP
+    by = c("state", "county", "tract", "block_group")
   )
 
 # exclude reason

@@ -160,8 +160,8 @@ adi[, .N, keyby = .(year, exclude_from_ranking, neighborhood_atlas_exclude)]
 ## 4:  2020                    1                          1   5669
 ## 5:  2023                   NA                          1     40
 ## 6:  2023                    0                          0 236102
-## 7:  2023                    0                          1   2511
-## 8:  2023                    1                          1   3683
+## 7:  2023                    0                          1     42
+## 8:  2023                    1                          1   6152
 ```
 
 There are 40 GEOID in the 2023 Neighborhood Atlas only.
@@ -218,7 +218,7 @@ adi[,
 ##     year both_exclude    both_include r_in_ngbr_ex r_ex_nghr_in
 ##    <int>       <char>          <char>       <char>       <char>
 ## 1:  2020 5,669 (2.3%) 235,334 (97.1%)   780 (0.3%)   552 (0.2%)
-## 2:  2023 3,683 (1.5%) 236,102 (97.4%) 2,511 (1.0%)     0 (0.0%)
+## 2:  2023 6,152 (2.5%) 236,102 (97.4%)    42 (0.0%)     0 (0.0%)
 ```
 
 Let's look at the block groups that are excluded in Neighborhood Atlas but not
@@ -236,8 +236,7 @@ adi[
 ##    <int>                            <char> <int>
 ## 1:  2020                                GQ   751
 ## 2:  2020                               QDI    29
-## 3:  2023                                GQ  2469
-## 4:  2023                               QDI    42
+## 3:  2023                               QDI    42
 ```
 The primary reaon for exclusion by Neighborhood Atlas is group quarters.
 
@@ -245,30 +244,154 @@ The primary reaon for exclusion by Neighborhood Atlas is group quarters.
 ``` r
 group_quarters <- data.table::fread("group_quarters.csv.gz")
 
-group_quarters[
-  adi[exclude_from_ranking == 0 & neighborhood_atlas_exclude == 1],
-  on = c("year", "state", "county", "tract", "block_group")
-][
-  ,
-  .N,
-  keyby = .(year, group_quarters < 1/3)
+bg_gh <-
+  group_quarters[
+    adi[exclude_from_ranking == 0 & neighborhood_atlas_exclude == 1],
+    on = c("year", "state", "county", "tract", "block_group")
   ]
+```
+
+Sanity check, for those with a value for group quarters all of them are, in the
+reproduction, under 1/3.
+
+``` r
+bg_gh[, .N, keyby = .(year, group_quarters < 1/3) ]
 ## Key: <year, group_quarters>
 ##     year group_quarters     N
 ##    <int>         <lgcl> <int>
 ## 1:  2020           TRUE   780
-## 2:  2023             NA  2511
+## 2:  2023             NA    42
+```
+
+If the exclusion by group quarters is based on the Decennial census values, then
+a block group should be exlcuded in both 2020 and 2023.  However, only a few
+block groups are excluded due to group quarters in both Neighborhood Atlas
+data sets.
+
+``` r
+bg_gh[, .SD[duplicated(.SD, by = c("state", "county", "tract", "block_group"))]]
+##     year state county  tract block_group group_quarters         FIPS   adi_raw
+##    <int> <int>  <int>  <int>       <int>          <num>       <char>     <num>
+## 1:  2023     8     57 955600           1             NA 080579556001 -30102.32
+## 2:  2023     8     57 955600           2             NA 080579556002 -17424.09
+## 3:  2023    48    443 950100           1             NA 484439501001 -16749.86
+##    exclude_from_ranking exclude_reason national_rank state_rank ADI_NATRANK
+##                   <int>         <char>         <int>      <int>       <num>
+## 1:                    0                           47          9          NA
+## 2:                    0                           81         10          NA
+## 3:                    0                           83          8          NA
+##    ADI_STATERNK neighborhood_atlas_exclude_reason neighborhood_atlas_exclude
+##           <num>                            <char>                      <int>
+## 1:           NA                               QDI                          1
+## 2:           NA                               QDI                          1
+## 3:           NA                               QDI                          1
+```
+
+
+``` r
+adi[bg_gh, on = "FIPS"]
+##        year         FIPS state county  tract block_group    adi_raw
+##       <int>       <char> <int>  <int>  <int>       <int>      <num>
+##    1:  2020 010030105001     1      3  10500           1 -17948.976
+##    2:  2023 010030105001     1      3  10500           1 -19330.433
+##    3:  2020 010150012012     1     15   1201           2 -10523.215
+##    4:  2023 010150012012     1     15   1201           2 -16310.839
+##    5:  2020 010399625001     1     39 962500           1 -10447.992
+##   ---                                                              
+## 1633:  2023 483859501004    48    385 950100           4 -19698.002
+## 1634:  2020 484439501001    48    443 950100           1 -12023.690
+## 1635:  2023 484439501001    48    443 950100           1 -16749.861
+## 1636:  2020 720851902012    72     85 190201           2  -9004.742
+## 1637:  2023 720851902012    72     85 190201           2  -7061.400
+##       exclude_from_ranking exclude_reason national_rank state_rank ADI_NATRANK
+##                      <int>         <char>         <int>      <int>       <num>
+##    1:                    0                           63          4          NA
+##    2:                    0                           75          5          80
+##    3:                    0                           91          8          NA
+##    4:                    0                           84          7          82
+##    5:                    0                           91          9          NA
+##   ---                                                                         
+## 1633:                    0                           74          7          NA
+## 1634:                    0                           86          8          NA
+## 1635:                    0                           83          8          NA
+## 1636:                    0                           95          7          95
+## 1637:                    0                          100         10          NA
+##       ADI_STATERNK neighborhood_atlas_exclude_reason neighborhood_atlas_exclude
+##              <num>                            <char>                      <int>
+##    1:           NA                                GQ                          1
+##    2:            6                                                            0
+##    3:           NA                                GQ                          1
+##    4:            6                                                            0
+##    5:           NA                                GQ                          1
+##   ---                                                                          
+## 1633:           NA                               QDI                          1
+## 1634:           NA                               QDI                          1
+## 1635:           NA                               QDI                          1
+## 1636:            7                                                            0
+## 1637:           NA                               QDI                          1
+##       i.year i.state i.county i.tract i.block_group group_quarters i.adi_raw
+##        <int>   <int>    <int>   <int>         <int>          <num>     <num>
+##    1:   2020       1        3   10500             1      0.3221818 -17948.98
+##    2:   2020       1        3   10500             1      0.3221818 -17948.98
+##    3:   2020       1       15    1201             2      0.2515231 -10523.21
+##    4:   2020       1       15    1201             2      0.2515231 -10523.21
+##    5:   2020       1       39  962500             1      0.1946779 -10447.99
+##   ---                                                                       
+## 1633:   2023      48      385  950100             4             NA -19698.00
+## 1634:   2023      48      443  950100             1             NA -16749.86
+## 1635:   2023      48      443  950100             1             NA -16749.86
+## 1636:   2023      72       85  190201             2             NA  -7061.40
+## 1637:   2023      72       85  190201             2             NA  -7061.40
+##       i.exclude_from_ranking i.exclude_reason i.national_rank i.state_rank
+##                        <int>           <char>           <int>        <int>
+##    1:                      0                               63            4
+##    2:                      0                               63            4
+##    3:                      0                               91            8
+##    4:                      0                               91            8
+##    5:                      0                               91            9
+##   ---                                                                     
+## 1633:                      0                               74            7
+## 1634:                      0                               83            8
+## 1635:                      0                               83            8
+## 1636:                      0                              100           10
+## 1637:                      0                              100           10
+##       i.ADI_NATRANK i.ADI_STATERNK i.neighborhood_atlas_exclude_reason
+##               <num>          <num>                              <char>
+##    1:            NA             NA                                  GQ
+##    2:            NA             NA                                  GQ
+##    3:            NA             NA                                  GQ
+##    4:            NA             NA                                  GQ
+##    5:            NA             NA                                  GQ
+##   ---                                                                 
+## 1633:            NA             NA                                 QDI
+## 1634:            NA             NA                                 QDI
+## 1635:            NA             NA                                 QDI
+## 1636:            NA             NA                                 QDI
+## 1637:            NA             NA                                 QDI
+##       i.neighborhood_atlas_exclude
+##                              <int>
+##    1:                            1
+##    2:                            1
+##    3:                            1
+##    4:                            1
+##    5:                            1
+##   ---                             
+## 1633:                            1
+## 1634:                            1
+## 1635:                            1
+## 1636:                            1
+## 1637:                            1
 ```
 
 
 
 ``` r
 with(adi, cor(state_rank, ADI_STATERNK, method = "pearson", use = "pairwise.complete.obs"))
-## [1] 0.9686852
-with(adi, cor(state_rank, ADI_STATERNK, method = "spearman", use = "pairwise.complete.obs"))
 ## [1] 0.9686906
+with(adi, cor(state_rank, ADI_STATERNK, method = "spearman", use = "pairwise.complete.obs"))
+## [1] 0.968694
 adi[complete.cases(adi[, .(state_rank, ADI_STATERNK)])][, pcaPP::cor.fk(state_rank, ADI_STATERNK)]
-## [1] 0.9139497
+## [1] 0.9139523
 
 with(adi[year == 2020], cor(state_rank, ADI_STATERNK, method = "pearson", use = "pairwise.complete.obs"))
 ## [1] 0.9693838
@@ -278,18 +401,18 @@ adi[year == 2020 & complete.cases(adi[, .(state_rank, ADI_STATERNK)])][, pcaPP::
 ## [1] 0.9151964
 
 with(adi[year == 2023], cor(state_rank, ADI_STATERNK, method = "pearson", use = "pairwise.complete.obs"))
-## [1] 0.967989
+## [1] 0.9679998
 with(adi[year == 2023], cor(state_rank, ADI_STATERNK, method = "spearman", use = "pairwise.complete.obs"))
-## [1] 0.9679944
+## [1] 0.9680013
 adi[year == 2023 & complete.cases(adi[, .(state_rank, ADI_STATERNK)])][, pcaPP::cor.fk(state_rank, ADI_STATERNK)]
-## [1] 0.9127118
+## [1] 0.9127156
 
 with(adi, cor(national_rank, ADI_NATRANK, method = "pearson", use = "pairwise.complete.obs"))
-## [1] 0.9864722
+## [1] 0.9864773
 with(adi, cor(national_rank, ADI_NATRANK, method = "spearman", use = "pairwise.complete.obs"))
-## [1] 0.986479
+## [1] 0.9864796
 adi[complete.cases(adi[, .(national_rank, ADI_NATRANK)])][, pcaPP::cor.fk(national_rank, ADI_NATRANK)]
-## [1] 0.921997
+## [1] 0.9219987
 
 with(adi[year == 2020], cor(national_rank, ADI_NATRANK, method = "pearson", use = "pairwise.complete.obs"))
 ## [1] 0.9864514
@@ -299,11 +422,11 @@ adi[year == 2020 & complete.cases(adi[, .(national_rank, ADI_NATRANK)])][, pcaPP
 ## [1] 0.9219371
 
 with(adi[year == 2023], cor(national_rank, ADI_NATRANK, method = "pearson", use = "pairwise.complete.obs"))
-## [1] 0.9864933
+## [1] 0.9865031
 with(adi[year == 2023], cor(national_rank, ADI_NATRANK, method = "spearman", use = "pairwise.complete.obs"))
-## [1] 0.9865021
+## [1] 0.9865034
 adi[year == 2023 & complete.cases(adi[, .(national_rank, ADI_NATRANK)])][, pcaPP::cor.fk(national_rank, ADI_NATRANK)]
-## [1] 0.9220846
+## [1] 0.9220821
 ```
 
 
