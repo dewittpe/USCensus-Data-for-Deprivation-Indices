@@ -81,12 +81,24 @@ For my work I have saved the path to thses files as envirnment variables.
 ``` r
 stopifnot(
   file.exists(Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2020_V401")),
-  file.exists(Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2023_V401"))
+  file.exists(Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2023_V401")),
+  identical(
+    digest::digest(
+      Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2020_V401"),
+      algo = "sha256",
+      file = TRUE
+    ),
+    "8c575a7ff78cacde1d9d7dfd644d36bc49bf2a9992029ae17e3e35be8c283adc"
+  ),
+  identical(
+    digest::digest(
+      Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2023_V401"),
+      algo = "sha256",
+      file = TRUE
+    ),
+    "396d02228b13f6ae45196d416218e69889696aa99c14730aad631adb8659b08b"
+  )
 )
-digest::digest(Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2020_V401"), algo = "sha256")
-## [1] "a86448b07bd3d32dac4ee07d532924a6aa320ea445a665435f4aaf8139bad628"
-digest::digest(Sys.getenv("NEIGHBORHOOD_ATLAS_ADI_2023_V401"), algo = "sha256")
-## [1] "5a7532cf8e4e2e6168b8d0f0329ae7a0b557e7476669c8274b54d42ac2331c0d"
 ```
 Import the Neighborhood Atlas 2020 and 2023 data.
 
